@@ -1,17 +1,26 @@
+// <img> reference
 var current_texture = null;
+
+// editor state for mouse move events
 var is_drawing = false;
+var is_erasing = false;
 var is_moving = false;
+
+// current control state, used by periodic updates
 var controls = {
 	forward: 0,
 	sideways: 0,
 	rotation: 0,
 }
 var update_interval;
+var uptodate = false;
 
+// define map
 var map_size = 20;
 var block_size;
 var map = [];
 
+// define canvases for 2D and 3D map rendering
 var input_canvas;
 var output_canvas;
 
@@ -21,47 +30,61 @@ var output_context;
 var input_rect;
 var output_rect;
 
-var player = {
-	x: map_size/2,
-	y: map_size/2,
+// camera positoin
+var camera = {
+	x: map_size/2+0.5,
+	y: map_size/2+0.5,
 	r: 0,
 }
 var FOV = 60 * Math.PI / 180;
 
+// initialise canvases and begin rendering
 function init(){
 
+	// 'load' initial texture and set border of map to it
 	current_texture = document.getElementById('default_texture');
 	map = [...Array(map_size).keys()].map(y => [...Array(map_size).keys()].map(x => (0 < x && x < map_size-1 && 0 < y && y < map_size-1) ? null : current_texture));
 	
+	// input: 2D map, output: 3D rendering
 	input_canvas = document.getElementById('input');
 	output_canvas = document.getElementById('output');
 
 	input_context = input_canvas.getContext('2d');
 	output_context = output_canvas.getContext('2d');
-	// input_context.globalCompositeOperation = 'destination-out';
 
+	// set coordinate system of input to origin at bottom left
 	block_size = input_canvas.width / map_size;
 	input_context.transform(1,0,0,-1,0,input_canvas.width)
 	// input_context.transform(block_size,0,0,-block_size,0,input_canvas.width)
 
 	input_rect = input_canvas.getBoundingClientRect();
 	output_rect = output_canvas.getBoundingClientRect();
-	
-	render();
 
+	// begin update interval
 	update_interval = setInterval(update, 20);
 }
 
+// update the camera state and refresh the rendereing if changes occured
 function update(){
 
-	player.r += controls.rotation / 20;
-	var dx = controls.sideways*Math.sin(-player.r) + controls.forward*Math.cos(player.r);
-	var dy = controls.forward*Math.sin(player.r) + controls.sideways*Math.cos(player.r);
+	// if not stationary, uptodate is false
+	uptodate &= controls.rotation == 0 && controls.forward == 0 && controls.sideways == 0;
 
-	player.x += dx / 20;
-	player.y += dy / 20;
+	if(uptodate)
+		return;
 
+	// update the camera state according to the controls
+	camera.r += controls.rotation / 20;
+
+	// canculated global x, y changes from cameras relatives movements
+	var dx = controls.sideways*Math.sin(-camera.r) + controls.forward*Math.cos(camera.r);
+	var dy = controls.forward*Math.sin(camera.r) + controls.sideways*Math.cos(camera.r);
+	camera.x += dx / 20;
+	camera.y += dy / 20;
+
+	// render graphcis
 	render();
+	uptodate = true;
 }
 
 function setTexture(texture){
@@ -71,13 +94,14 @@ function setTexture(texture){
 function onInputMouseDown(event){
 	event.preventDefault();
 	is_drawing = event.button == 0;
-	is_moving = event.button == 2;
+	is_erasing = event.button == 2;
 	onInputMouseMove(event);
 }
 
 function onInputMouseUp(event){
 	event.preventDefault();
 	is_drawing = false;
+	is_erasing = false;
 	is_moving = false;
 }
 
@@ -86,23 +110,23 @@ function onInputMouseMove(event){
 	var x = (event.clientX - input_rect.left) / block_size;
 	var y = map_size - (event.clientY - input_rect.top) / block_size;
 
-	if(is_drawing){
+	if(is_drawing || is_erasing){
 
 		x = Math.floor(x);
 		y = Math.floor(y);
 
 		if(0 < x && x < map_size-1 && 0 < y && y < map_size-1)
-			map[y][x] = current_texture;
+			map[y][x] = is_drawing ? current_texture : null;
 
-		render();
+		uptodate = false;
 	}
 
 	if(is_moving){
 		
-		player.x = x;
-		player.y = y;
+		camera.x = x;
+		camera.y = y;
 
-		render();
+		uptodate = false;
 	}
 
 }
@@ -150,7 +174,7 @@ function onOutputKeyUp(event){
 }
 
 function onOutputWheel(event){
-	player.r += event.deltaY / 1000;
+	camera.r += event.deltaY / 1000;
 }
 
 function render(){
@@ -177,15 +201,15 @@ function renderInput(){
 
 function renderOutput(){
 
-	var x = player.x;
-	var y = player.y;
+	var x = camera.x;
+	var y = camera.y;
 	var ix = Math.floor(x);
 	var iy = Math.floor(y);
 	var fx = x - ix;
 	var fy = y - iy;
 
 	var dr = FOV / output_canvas.width;
-	var r = player.r + FOV/2;
+	var r = camera.r + FOV/2;
 
 	var ray_cast_hits = [];
 
