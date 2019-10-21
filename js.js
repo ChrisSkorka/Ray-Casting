@@ -1,6 +1,12 @@
-var current_color = null;
+var current_texture = null;
 var is_drawing = false;
 var is_moving = false;
+var controls = {
+	forward: 0,
+	sideways: 0,
+	rotation: 0,
+}
+var update_interval;
 
 var map_size = 20;
 var block_size;
@@ -16,15 +22,16 @@ var input_rect;
 var output_rect;
 
 var player = {
-	x: map_size/4+0.5,
-	y: map_size/4+0.5,
+	x: map_size/2,
+	y: map_size/2,
 	r: 0,
 }
 var FOV = 60 * Math.PI / 180;
 
 function init(){
 
-	map = [...Array(map_size).keys()].map(y => [...Array(map_size).keys()].map(x => (0 < x && x < map_size-1 && 0 < y && y < map_size-1) ? null : '#888888'));
+	current_texture = document.getElementById('default_texture');
+	map = [...Array(map_size).keys()].map(y => [...Array(map_size).keys()].map(x => (0 < x && x < map_size-1 && 0 < y && y < map_size-1) ? null : current_texture));
 	
 	input_canvas = document.getElementById('input');
 	output_canvas = document.getElementById('output');
@@ -40,12 +47,25 @@ function init(){
 	input_rect = input_canvas.getBoundingClientRect();
 	output_rect = output_canvas.getBoundingClientRect();
 	
+	render();
+
+	update_interval = setInterval(update, 20);
+}
+
+function update(){
+
+	player.r += controls.rotation / 20;
+	var dx = controls.sideways*Math.sin(-player.r) + controls.forward*Math.cos(player.r);
+	var dy = controls.forward*Math.sin(player.r) + controls.sideways*Math.cos(player.r);
+
+	player.x += dx / 20;
+	player.y += dy / 20;
 
 	render();
 }
 
-function set_color(color){
-	current_color = color;
+function setTexture(texture){
+	current_texture = texture;
 }
 
 function onInputMouseDown(event){
@@ -72,7 +92,7 @@ function onInputMouseMove(event){
 		y = Math.floor(y);
 
 		if(0 < x && x < map_size-1 && 0 < y && y < map_size-1)
-			map[y][x] = current_color;
+			map[y][x] = current_texture;
 
 		render();
 	}
@@ -87,6 +107,52 @@ function onInputMouseMove(event){
 
 }
 
+function onOutputKeyDown(event){
+	
+	switch(event.key){
+		case "ArrowLeft":
+			controls.rotation = 1;
+			break;
+		case "ArrowRight":
+			controls.rotation = -1;
+			break;
+		case "w":
+			controls.forward = 1;
+			break;
+		case "s":
+			controls.forward = -1;
+			break;
+		case "a":
+			controls.sideways = 1;
+			break;
+		case "d":
+			controls.sideways = -1;
+			break;
+	}
+}
+
+function onOutputKeyUp(event){
+	
+	switch(event.key){
+		case "ArrowLeft":
+		case "ArrowRight":
+			controls.rotation = 0;
+			break;
+		case "w":
+		case "s":
+			controls.forward = 0;
+			break;
+		case "a":
+		case "d":
+			controls.sideways = 0;
+			break;
+	}
+}
+
+function onOutputWheel(event){
+	player.r += event.deltaY / 1000;
+}
+
 function render(){
 	
 	renderInput();
@@ -99,8 +165,12 @@ function renderInput(){
 		for(var x=0; x<map_size; x++){
 			var block = map[y][x];
 
-			input_context.fillStyle = block == null ? '#FFFFFF' : block;
-			input_context.fillRect(x*block_size, y*block_size, block_size, block_size);
+			if(block == null){
+				input_context.fillStyle = '#FFFFFF';
+				input_context.fillRect(x*block_size, y*block_size, block_size, block_size);
+			}else{
+				input_context.drawImage(block, x*block_size, y*block_size, block_size, block_size);
+			}
 		}
 	}
 }
@@ -117,6 +187,8 @@ function renderOutput(){
 	var dr = FOV / output_canvas.width;
 	var r = player.r + FOV/2;
 
+	var ray_cast_hits = [];
+
 	for(var col=0; col<output_canvas.width; col++, r-=dr){
 
 		var dx = Math.cos(r);
@@ -128,16 +200,7 @@ function renderOutput(){
 
 		while(map[hit.iy][hit.ix] == null){
 
-			// console.log(hit);
-			// console.log({dx:dx, dy:dy});
 			exit_point = getBlockExitPoint(hit.fx, hit.fy, dx, dy);
-			// console.log(exit_point);
-
-			// input_context.strokeStyle = '#FF0000';
-			// input_context.beginPath();
-			// input_context.moveTo(x*block_size, y*block_size);
-			// input_context.lineTo(hit.x*block_size, hit.y*block_size);
-			// input_context.stroke();
 
 			hit.ix += exit_point.dx;
 			hit.iy += exit_point.dy;
@@ -148,42 +211,41 @@ function renderOutput(){
 
 		hit.x = hit.ix + hit.fx;
 		hit.y = hit.iy + hit.fy;
+		wall_x = (hit.fy == 0 || hit.fy == 1) ? hit.fx : hit.fy;
 
-		color = map[hit.iy][hit.ix];
+		texture = map[hit.iy][hit.ix];
 		d = Math.sqrt(Math.pow((hit.x - x), 2) + Math.pow((hit.y - y), 2));
 
-		if(c != null){
-			// console.log({x:x, y:y, hx:hit.x, hy:hit.y, dx:dx, dy:dy});
-			
-			input_context.strokeStyle = '#555555';
-			input_context.beginPath();
-			input_context.moveTo(x*block_size, y*block_size);
-			input_context.lineTo(hit.x*block_size, hit.y*block_size);
-			input_context.stroke();
-			
-			input_context.strokeStyle = '#222222';
-			input_context.beginPath();
-			input_context.moveTo(x*block_size, y*block_size);
-			input_context.lineTo((x+dx)*block_size, (y+dy)*block_size);
-			input_context.stroke();
-			// input_context.fillRect(x*block_size+block_size/4, y*block_size+block_size/4, block_size/2, block_size/2);
-		}
+
+		ray_cast_hits.push([hit.x, hit.y]);
 
 		var height = output_canvas.height / d;
 		var top = (output_canvas.height - height) / 2;
 		var bottom = top + height;
 
-		output_context.fillStyle = '#88BBFF'
+		output_context.fillStyle = '#88BBFF';
 		output_context.fillRect(col,0,1,top);
 
-		output_context.fillStyle = color
-		output_context.fillRect(col,top,1,bottom);
+		output_context.drawImage(texture, wall_x*600, 0, 1, 600, col,top,1,height);
 
-		output_context.fillStyle = '#555555'
+		output_context.fillStyle = '#555555';
 		output_context.fillRect(col,bottom,1,output_canvas.height);
 
 	}
 
+	input_context.strokeStyle = '#000000';
+	input_context.fillStyle = '#AAAAAA';
+	input_context.beginPath();
+	input_context.moveTo(x*block_size, y*block_size);
+	
+	ray_cast_hits.forEach(hit => {
+		input_context.lineTo(hit[0]*block_size, hit[1]*block_size);
+	});
+	input_context.closePath();
+
+	input_context.fill();
+	input_context.stroke();
+	
 }
 
 function getBlockExitPoint(x, y, dx, dy){

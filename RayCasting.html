@@ -7,7 +7,11 @@
 		<link href="css.css" rel="stylesheet" type="text/css">
 	
 	</head>
-	<body onload="init()">
+	<body 
+		onload="init()"
+		onkeydown="onOutputKeyDown(event)"
+		onkeyup="onOutputKeyUp(event)"
+		onwheel="onOutputWheel(event)">
 		<table id="table">
 			<tr>
 				<td>
@@ -15,8 +19,7 @@
 						id="output" 
 						width="600" 
 						height="600" 
-						style="border:1px solid #888888;" 
-						onmousedown="onMouseDown(event)">
+						style="border:1px solid #888888;">
 					</canvas>
 				</td>
 				<td>
@@ -33,13 +36,16 @@
 				</td>
 			</tr>
 			<tr>
-				<td>
-					<button class="color_Selector" style="background-color: #FFFFFF" onclick="set_color(null)"/>
-					<button class="color_Selector" style="background-color: #888888" onclick="set_color('#888888')"/>
-					<button class="color_Selector" style="background-color: #FF8800" onclick="set_color('#FF8800')"/>
-					<button class="color_Selector" style="background-color: #0088FF" onclick="set_color('#0088FF')"/>
-					<button class="color_Selector" style="background-color: #8800FF" onclick="set_color('#8800FF')"/>
-					<button class="color_Selector" style="background-color: #FF0088" onclick="set_color('#FF0088')"/>
+				<td colspan="2">
+					<img class="texture_selector" onclick="setTexture(this)" src="wall1.jpg" id="default_texture"/>
+					<img class="texture_selector" onclick="setTexture(this)" src="wall2.jpg"/>
+					<img class="texture_selector" onclick="setTexture(this)" src="wall3.jpg"/>
+					<img class="texture_selector" onclick="setTexture(this)" src="wall4.jpg"/>
+					<img class="texture_selector" onclick="setTexture(this)" src="wall5.jpg"/>
+					<img class="texture_selector" onclick="setTexture(this)" src="wall6.jpg"/>
+					<img class="texture_selector" onclick="setTexture(this)" src="wall7.jpg"/>
+					<img class="texture_selector" onclick="setTexture(this)" src="wall8.jpg"/>
+					<img class="texture_selector" onclick="setTexture(this)" src="wall9.jpg"/>
 				</td>
 				<td>
 				</td>
