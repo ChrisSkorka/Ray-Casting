@@ -184,8 +184,8 @@ function onOutputKeyUp(event){
 
 // on scroll wheen, instantaneously rotate camera
 function onOutputWheel(event){
-	camera.r += event.deltaY / 1000;
-	uptodate = false;
+	// camera.r += event.deltaY / 1000;
+	// uptodate = false;
 }
 
 // call input and output renderer
@@ -261,6 +261,8 @@ function renderOutput(){
 
 		// texture to use
 		texture = map[hit.iy][hit.ix];
+		texture_width = texture.naturalWidth;
+		texture_height = texture.naturalHeight;
 
 		// distance to hit point
 		d = Math.sqrt(Math.pow((hit.x - x), 2) + Math.pow((hit.y - y), 2));
@@ -278,7 +280,7 @@ function renderOutput(){
 		output_context.fillRect(col,0,1,top);
 
 		// draw block
-		output_context.drawImage(texture, wall_x*600, 0, 1, 600, col,top,1,height);
+		output_context.drawImage(texture, wall_x*texture_width, 0, 1, texture_height, col,top,1,height);
 
 		// draw floor
 		output_context.fillStyle = '#555555';
